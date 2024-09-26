@@ -1,52 +1,63 @@
 #include <iostream>
 #include <algorithm>
-#include <vector>
-#include <list>
+#include <unordered_set>
 using namespace std;
+
+// using Fire = tuple<int, int, int, int, int>
+// auto &[a, b, c, d, e] : List<Fire>
+// get<n>(Fire)
 
 class Fire {
 public:
 	int r, c, m, s, d;
 	Fire(int r, int c, int m, int s, int d): r(r), c(c), m(m), s(s), d(d) {}
+	friend ostream &operator<<(ostream &o, Fire &f) {
+		o << f.r << ", " << f.c;
+		return o;
+	}
 };
 
 int dir[8][2] = {{-1, 0}, {-1,1}, {0,1}, {1,1}, {1,0}, {1,-1},{0,-1},{-1,-1}};
-list<Fire *> map[50][50];
-vector<Fire*> fire;
+unordered_set<Fire *> map[50][50];
+unordered_set<Fire*> fire;
 int N, M, K, r, c, m, s, d;
 
 int sum() {
 	int s = 0;
-	for (int i=0; i<fire.size(); i++) s+= fire[i]->m;
+	for (Fire *f : fire) s+= f->m;
 	return s;
 }
 
 void move() {
 	for (Fire *f : fire) {
-		map[f->r][f->c].remove(f);
-		f->r = (f->r + dir[f->d][0] * f->s) % N;
-		f->c = (f->c + dir[f->d][1] * f->s) % N;
-		map[f->r][f->c].push_back(f);
+		map[f->r][f->c].erase(f);
+		f->r = (f->r + (dir[f->d][0] + N) * f->s) % N;
+		f->c = (f->c + (dir[f->d][1] + N) * f->s) % N;
+		map[f->r][f->c].insert(f);
 	}
 }
 
 void merge() {
 	for (int i=0; i<N; i++) {
 		for (int j=0; j<N; j++) {
-			int ms = 0, ss = 0;
 			int cnt = map[i][j].size();
+			if (cnt < 2) continue;
+			int ms = 0, ss = 0;
 			bool allOdd = true, allEven = true;
 			for (Fire *f : map[i][j]) {
 				ms += f->m;
 				ss += f->s;
 				if (f->d % 2) {allOdd &= true; allEven &= false;}
-				else {allOdd &= false; allEven &= true; }
+				else { allOdd &= false; allEven &= true; }
+				fire.erase(f);
 				delete f;
 			}
 			map[i][j].clear();
 			if (ms / 5 == 0) continue;
-			for (int i=!(allOdd || allEven); i<8; i+=2) {
-				map[i][j].push_back(new Fire(i, j, ms / 5, ss / cnt, i));
+			for (int k=!(allOdd || allEven); k<8; k+=2) {
+				Fire *f = new Fire(i, j, ms / 5, ss / cnt, k);
+				fire.insert(f);
+				map[i][j].insert(f);
 			}
 		}
 	}
@@ -57,10 +68,12 @@ int main(void) {
     cin >> N >> M >> K;
 	for (int i=0; i<M; i++) {
 		cin >> r >> c >> m >> s >> d;
-		fire.push_back(new Fire(r,c,m,s,d));
-		map[r][c].push_back(fire[i]);
+		r--; c--;
+		Fire *f = new Fire(r,c,m,s,d);
+		fire.insert(f);
+		map[r][c].insert(f);
 	}
-	while(K--) {
+	while (K--) {
 		move();
 		merge();
 	}
